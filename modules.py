@@ -23,11 +23,19 @@ def ln(inputs, epsilon = 1e-8, scope="ln"):
     with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
         inputs_shape = inputs.get_shape()
         params_shape = inputs_shape[-1:]
-    
+        #对每个词向量(层输出)求均值和方差 （？,？,1）
         mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
         beta= tf.get_variable("beta", params_shape, initializer=tf.zeros_initializer())
         gamma = tf.get_variable("gamma", params_shape, initializer=tf.ones_initializer())
         normalized = (inputs - mean) / ( (variance + epsilon) ** (.5) )
+        '''
+        此处和Batch Normalization不一样，BN同样用的是gamma(dim=inputs.shape[-1])
+        但BN是对每一维度标准化后乘一个系数加一个均值，而LN则是对词向量(或隐层输出)
+        标准化，然后在每一维上做不同的线性变换（此时的gamma和beta并不是新数据的方
+        差和均值，因为gamma各个分量不同，导致各个分量均值方差不同。相当于横向标准化
+        纵向赋予新的方差和均值！）
+        '''
+        # 矩阵点乘（对应分量相乘,对应分量相加）
         outputs = gamma * normalized + beta
         
     return outputs
@@ -292,7 +300,7 @@ def positional_encoding(inputs,
         # Second part, apply the cosine to even columns and sin to odds.
         position_enc[:, 0::2] = np.sin(position_enc[:, 0::2])  # dim 2i
         position_enc[:, 1::2] = np.cos(position_enc[:, 1::2])  # dim 2i+1
-        #转换成张量，可训练参数？
+        #转换成张量，可训练参数？ 不可以更新参数！/7.28
         position_enc = tf.convert_to_tensor(position_enc, tf.float32) # (maxlen, E)
 
         # lookup
