@@ -16,7 +16,12 @@ from tqdm import tqdm
 import logging
 
 logging.basicConfig(level=logging.INFO)
-
+'''
+八头六块，encoder和decoder均为六块，每块中的attention为八头。
+encoder-->encoder-->...->encoder->输出结果memory
+中间无联系，仅memory用于decoder
+decoder-memory(encoder-decoder attention)->decoder-memory(...)->...->decoder->logits
+'''
 class Transformer:
     '''
     xs: tuple of
@@ -63,6 +68,7 @@ class Transformer:
                                               causality=False)
                     # feed forward
                     enc = ff(enc, num_units=[self.hp.d_ff, self.hp.d_model])
+        #最后一次的输出
         memory = enc
         return memory, sents1
 
@@ -113,6 +119,7 @@ class Transformer:
 
         # Final linear projection (embedding weights are shared)
         weights = tf.transpose(self.embeddings) # (d_model, vocab_size)
+        #out[n,t,k]=sum_d dec[n,t,d]*weights[d,k]
         logits = tf.einsum('ntd,dk->ntk', dec, weights) # (N, T2, vocab_size)
         y_hat = tf.to_int32(tf.argmax(logits, axis=-1))
 
